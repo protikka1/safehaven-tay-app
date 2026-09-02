@@ -1,0 +1,40 @@
+name: SafeHaven TAY App CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-python-version: '3.12'
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+    - name: Initialize Test Database Schema
+      run: |
+        # Set up a fresh testing database using the seed script
+        if [ -f database/seed.py ]; then
+          python database/seed.py
+        elif [ -f setup-and-seed-db.py ]; then
+          mkdir -p database
+          cp setup-and-seed-db.py database/seed.py
+          python database/seed.py
+        fi
+
+    - name: Run Schema Integrity & Unit Tests
+      run: |
+        python -m unittest discover tests/

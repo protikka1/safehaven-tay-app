@@ -1,0 +1,27 @@
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# Python caching
+**/__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
+
+# Database Files (CRITICAL: Never commit active patient databases to GitHub!)
+*.db
+*.sqlite3
+*.sqlite
+
+# Streamlit Local Configuration & Secrets
+.streamlit/config.toml
+.streamlit/secrets.toml
+
+# macOS System Files
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
