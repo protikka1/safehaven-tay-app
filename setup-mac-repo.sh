@@ -263,10 +263,9 @@ jobs:
         # Set up a fresh testing database using the seed script
         if [ -f database/seed.py ]; then
           python database/seed.py
-        elif [ -f setup-and-seed-db.py ]; then
+        elif [ -f database/setup_and_seed.py ]; then
           mkdir -p database
-          cp setup-and-seed-db.py database/seed.py
-          python database/seed.py
+          python database/setup_and_seed.py
         fi
 
     - name: Run Schema Integrity & Unit Tests
