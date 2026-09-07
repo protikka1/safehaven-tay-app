@@ -14,7 +14,6 @@ env/
 *.db
 *.sqlite3
 *.sqlite
-database/outbox/
 
 # Streamlit Local Configuration & Secrets
 .streamlit/config.toml

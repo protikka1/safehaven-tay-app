@@ -1,0 +1,15 @@
+{
+  "patterns": [
+    {
+      "id": "example-pattern",
+      "onChange": "src/**/*.ts",
+      "notify": [
+        {
+          "file": "README.md",
+          "description": "📝 File modified - update documentation"
+        }
+      ],
+      "description": "Example pattern - modify it according to your needs"
+    }
+  ]
+}

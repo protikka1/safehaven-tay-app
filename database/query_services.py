@@ -5,6 +5,7 @@ DB_PATH = Path(__file__).with_name("recovery_app.db")
 
 def query_beds_and_placements(db_path):
     conn = sqlite3.connect(db_path)
+    conn.execute("PRAGMA foreign_keys = ON")
     cursor = conn.cursor()
     
     print("\n==========================================")

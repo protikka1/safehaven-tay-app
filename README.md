@@ -431,7 +431,7 @@ if __name__ == "__main__":
     conn.close()
 ```
 
-### B. Intake Simulation & Transaction Booker (`simulate-intake.py`)
+### B. Intake Simulation & Transaction Booker (`database/simulate_intake.py`)
 This script simulates the one-click API payload processing. It operates as a secure transaction: if a bed is available, it decreases the facility's bed count, logs the placement, links a Peer Support Specialist, and schedules their MAT prescription.
 
 ```python
@@ -585,7 +585,7 @@ if __name__ == "__main__":
     process_intake(DB_PATH, INTAKE_PAYLOAD)
 ```
 
-### C. Real-Time Dashboard Query Engine (`query-services.py`)
+### C. Real-Time Dashboard Query Engine (`database/query_services.py`)
 This script executes complex relational joins on the SQLite database, returning an instantly readable summary of bed availability, active placements, and active MAT prescriptions across the region.
 
 ```python
@@ -672,7 +672,7 @@ Static seed data (Facilities, Caseworkers, Clinicians) successfully inserted.
 ### Step 2: Run the One-Click Intake Simulation
 Execute the transaction intake script to simulate the registration of our unhoused youth client ("Sky"):
 ```bash
-python3 simulate-intake.py
+python3 database/simulate_intake.py
 ```
 *Expected Output:*
 ```text
@@ -689,7 +689,7 @@ python3 simulate-intake.py
 ### Step 3: View the Live Coordination Dashboard
 Query the SQLite database to verify the bed reservation updates and the active telehealth clinical linkage:
 ```bash
-python3 query-services.py
+python3 database/query_services.py
 ```
 
 ---
@@ -699,7 +699,7 @@ Ensure your local application folder maintains this flat workspace layout to mat
 ```text
 /mobile-app-workspace/
 ├── setup-and-seed-db.py       # Initializes DDL schema & Seeds database
-├── simulate-intake.py         # Performs transaction intake & direct booking
-├── query-services.py          # Queries active clients, beds, and scripts
+├── database/simulate_intake.py # Performs transaction intake & direct booking
+├── database/query_services.py  # Queries active clients, beds, and scripts
 └── recovery-app.db            # Resulting SQLite Database file
 ```

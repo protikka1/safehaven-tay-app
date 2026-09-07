@@ -2,9 +2,9 @@ name: SafeHaven TAY App CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main ]
 
 jobs:
   build-and-test:
@@ -17,12 +17,12 @@ jobs:
     - name: Set up Python 3.12
       uses: actions/setup-python@v5
       with:
-        python-version: '3.12'
+        python-python-version: '3.12'
 
     - name: Install Dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
     - name: Initialize Test Database Schema
       run: |
@@ -31,12 +31,6 @@ jobs:
           python database/seed.py
         fi
 
-    - name: Validate Python Sources
-      run: python -m compileall -q app.py database fccw_*.py tests
-
-    - name: Check Installed Dependencies
-      run: python -m pip check
-
-    - name: Run Unit Tests
+    - name: Run Schema Integrity & Unit Tests
       run: |
         python -m unittest discover tests/

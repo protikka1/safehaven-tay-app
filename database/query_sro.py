@@ -5,6 +5,7 @@ DB_PATH = Path(__file__).with_name("sro_housing.db")
 
 def query_sro_housing(db_path):
     conn = sqlite3.connect(db_path)
+    conn.execute("PRAGMA foreign_keys = ON")
     cursor = conn.cursor()
     
     print("\n==========================================================================")

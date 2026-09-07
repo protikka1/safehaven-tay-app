@@ -156,8 +156,7 @@ Before pushing code, configure your local environment using our unified bootstra
 ### For Android Developers (Termux):
 Run our automated mobile environment script:
 ```bash
-chmod +x setup-termux.sh
-./setup-termux.sh
+python3 database/seed.py
 ```
 *Note: This script configures prebuilt NumPy and Pandas binaries through Termux's `tur-repo` to bypass mobile processor compile crashes.*
 

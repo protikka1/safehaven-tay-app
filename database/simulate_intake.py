@@ -6,13 +6,12 @@ from pathlib import Path
 
 DB_PATH = Path(__file__).with_name("recovery_app.db")
 
-# Sample quick intake payload mimicking our fourth artifact
-# (recovery-app-api-payloads.md)
+# Sample quick intake payload for the local recovery workflow.
 INTAKE_PAYLOAD = {
     "alias": "Sky",
     "first_name": "Tyler",  # optional legal details
     "last_name": "Skyid",
-    "date_of_birth": "2004-10-12", # TAY (Transition-Age Youth aged ~21)
+    "date_of_birth": "2004-10-12",  # TAY (Transition-Age Youth aged ~21)
     "safelink_phone_number": "213-555-0999",
     "emergency_contact": "Aunt Jessie (323-555-0777)",
     "assessment": {
@@ -20,7 +19,9 @@ INTAKE_PAYLOAD = {
         "primary_substance": "Opioids/Fentanyl",
         "overdose_history_count": 2,
         "housing_status_at_intake": "Unsheltered",
-        "notes": "Youth expressed willingness to stabilize and requested MAT options."
+        "notes": (
+            "Youth expressed willingness to stabilize and requested MAT options."
+        )
     },
     "booking": {
         "facility_type": "Substance_Use_Hub",
