@@ -199,11 +199,14 @@ class LAPlanningAPIClient:
         
         try:
             # Setting a 3-second timeout to fail-fast inside air-gapped runtimes
+            parsed_url = urllib.parse.urlparse(LA_PLANNING_API_URL)
+            if parsed_url.scheme != "https" or not parsed_url.netloc:
+                raise ValueError("LA Planning API URL must use HTTPS")
             req = urllib.request.Request(
                 LA_PLANNING_API_URL, 
                 headers={'User-Agent': 'FCCW-Watchdog-Client/1.0'}
             )
-            with urllib.request.urlopen(req, timeout=3) as response:
+            with urllib.request.urlopen(req, timeout=3) as response:  # nosec B310 -- HTTPS validated above
                 data = json.loads(response.read().decode('utf-8'))
                 print(TerminalColors.OKGREEN + "✓ Live API connection successfully established!" + TerminalColors.ENDC)
                 return data, "Live API"

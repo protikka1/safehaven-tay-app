@@ -280,6 +280,9 @@ class SMSAlertDispatcher:
             
             try:
                 # Setup Basic Auth header for Twilio API request
+                parsed_url = urllib.parse.urlparse(twilio_url)
+                if parsed_url.scheme != "https" or parsed_url.netloc != "api.twilio.com":
+                    raise ValueError("Twilio API URL must use api.twilio.com over HTTPS")
                 req = urllib.request.Request(twilio_url, data=encoded_payload, method="POST")
                 auth = base64.b64encode(
                     f"{account_sid}:{auth_token}".encode("utf-8")
@@ -288,7 +291,7 @@ class SMSAlertDispatcher:
                 
                 print(f"   🔗 Transmitting POST request to Twilio for {recipient}...")
                 # 3-second timeout for fast-failing offline runtimes
-                with urllib.request.urlopen(req, timeout=3):
+                with urllib.request.urlopen(req, timeout=3):  # nosec B310 -- Twilio HTTPS host validated above
                     print(TerminalColors.OKGREEN + f"   ✓ SMS successfully delivered to {recipient}!" + TerminalColors.ENDC)
                     
             except Exception as e:
@@ -327,11 +330,14 @@ class LAPlanningAPIClient:
         print(f"🔗 Target: {LA_PLANNING_API_URL}\n")
         
         try:
+            parsed_url = urllib.parse.urlparse(LA_PLANNING_API_URL)
+            if parsed_url.scheme != "https" or not parsed_url.netloc:
+                raise ValueError("LA Planning API URL must use HTTPS")
             req = urllib.request.Request(
                 LA_PLANNING_API_URL, 
                 headers={'User-Agent': 'FCCW-Watchdog-Client/1.0'}
             )
-            with urllib.request.urlopen(req, timeout=3) as response:
+            with urllib.request.urlopen(req, timeout=3) as response:  # nosec B310 -- HTTPS validated above
                 data = json.loads(response.read().decode('utf-8'))
                 print(TerminalColors.OKGREEN + "✓ Live API connection successfully established!" + TerminalColors.ENDC)
                 return data, "Live API"
