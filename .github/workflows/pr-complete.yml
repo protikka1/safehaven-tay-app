@@ -1,0 +1,58 @@
+name: Complete Passing Pull Requests
+
+on:
+  workflow_run:
+    workflows: ["SafeHaven TAY App CI"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  discussions: write
+  actions: read
+
+jobs:
+  report-and-merge:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.pull_requests[0].number != null
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Create GitHub Discussion report
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          OWNER="${REPOSITORY%%/*}"
+          NAME="${REPOSITORY#*/}"
+
+          CATEGORY_ID="$(gh api graphql             -f query='query($owner:String!,$name:String!){repository(owner:$owner,name:$name){discussionCategories(first:25){nodes{id name}}}}'             -F owner="$OWNER"             -F name="$NAME"             --jq '.data.repository.discussionCategories.nodes[] | select(.name == "General") | .id'             | head -n 1)"
+
+          if [ -z "$CATEGORY_ID" ]; then
+            echo "GitHub Discussions must be enabled with a General category."
+            exit 1
+          fi
+
+          TITLE="PR #$PR_NUMBER passed CI and security checks"
+          BODY="Pull request #$PR_NUMBER passed dependency auditing, source scanning, syntax validation, and unit tests. Commit: $HEAD_SHA. Workflow run: $RUN_URL"
+
+          gh api graphql             -f query='mutation($repositoryId:ID!,$categoryId:ID!,$title:String!,$body:String!){createDiscussion(input:{repositoryId:$repositoryId,categoryId:$categoryId,title:$title,body:$body}){discussion{url}}}'             -F repositoryId="${{ github.event.repository.node_id }}"             -F categoryId="$CATEGORY_ID"             -f title="$TITLE"             -f body="$BODY"
+
+      - name: Squash-merge passing pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+        run: |
+          STATE="$(gh pr view "$PR_NUMBER" --repo "$REPOSITORY" --json state --jq .state)"
+          if [ "$STATE" = "OPEN" ]; then
+            gh pr merge "$PR_NUMBER" --repo "$REPOSITORY" --squash --delete-branch
+          else
+            echo "PR #$PR_NUMBER is already $STATE; nothing to merge."
+          fi
