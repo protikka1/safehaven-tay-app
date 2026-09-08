@@ -2,35 +2,54 @@ name: SafeHaven TAY App CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [master]
   pull_request:
-    branches: [ main ]
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build-and-test:
+  security-and-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v5
-      with:
-        python-python-version: '3.12'
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
 
-    - name: Install Dependencies
-      run: |
-        python -m pip install --upgrade pip
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: Install dependencies and security tools
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          python -m pip install bandit pip-audit
 
-    - name: Initialize Test Database Schema
-      run: |
-        # Set up a fresh testing database using the seed script
-        if [ -f database/seed.py ]; then
-          python database/seed.py
-        fi
+      - name: Audit Python dependencies
+        run: python -m pip_audit
 
-    - name: Run Schema Integrity & Unit Tests
-      run: |
-        python -m unittest discover tests/
+      - name: Scan Python source
+        run: python -m bandit -r . -x ./.git,./.venv,./venv,./tests -ll
+
+      - name: Check Python syntax
+        run: python -m compileall -q . -x '(^|/)(\.git|\.venv|venv)/'
+
+      - name: Initialize synthetic test database
+        run: |
+          if [ -f tests/fixtures/seed.py ] && [ -f database/schema.sql ]; then
+            python tests/fixtures/seed.py
+          else
+            echo "Synthetic seed prerequisites are not both present; skipping initialization."
+          fi
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -p 'test*.py'
