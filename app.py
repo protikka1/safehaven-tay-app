@@ -9,7 +9,8 @@ from pathlib import Path
 
 import streamlit as st
 
-from database.seed import DEFAULT_DB_PATH, seed_database
+from database.db import DEFAULT_DB_PATH, get_connection
+from database.seed import seed_database
 from fccw_watchdog import audit_project
 
 
@@ -19,10 +20,7 @@ TODAY = datetime.now(timezone.utc).date()
 def db_connection() -> sqlite3.Connection:
     """Open the seeded local database with foreign-key enforcement enabled."""
     seed_database(DEFAULT_DB_PATH)
-    connection = sqlite3.connect(DEFAULT_DB_PATH)
-    connection.row_factory = sqlite3.Row
-    connection.execute("PRAGMA foreign_keys = ON")
-    return connection
+    return get_connection(DEFAULT_DB_PATH)
 
 
 def load_dashboard_data() -> tuple[
@@ -86,7 +84,7 @@ def create_atomic_intake(
         connection.execute(
             "INSERT INTO youth_profiles "
             "(id, alias, first_name, last_name, date_of_birth, "
-            "safelink_phone_number) "
+            "phone_number) "
             "VALUES (?, ?, ?, ?, ?, ?)",
             (
                 youth_id,
@@ -184,7 +182,7 @@ with intake_tab:
                 min_value=min_birth,
                 max_value=max_birth,
             )
-            phone = st.text_input("SafeLink phone (optional)")
+            phone = st.text_input("Phone number (optional; any carrier)")
             substance = st.selectbox(
                 "Primary substance",
                 [

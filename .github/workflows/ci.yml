@@ -43,13 +43,8 @@ jobs:
       - name: Check Python syntax
         run: python -m compileall -q . -x '(^|/)(\.git|\.venv|venv)/'
 
-      - name: Initialize synthetic test database
-        run: |
-          if [ -f tests/fixtures/seed.py ] && [ -f database/schema.sql ]; then
-            python tests/fixtures/seed.py
-          else
-            echo "Synthetic seed prerequisites are not both present; skipping initialization."
-          fi
+      - name: Validate database initialization
+        run: python -m database.seed --db /tmp/safehaven-ci.db
 
       - name: Run unit tests
         run: python -m unittest discover -s tests -p 'test*.py'
