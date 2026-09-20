@@ -1,59 +1,50 @@
 import sqlite3
+import tempfile
 import unittest
 from pathlib import Path
 
+from database.seed import seed_database
 
-ROOT = Path(__file__).resolve().parents[1]
-DB_PATH = ROOT / "database" / "recovery_app.db"
-
+EXPECTED_TABLES = {
+    "low_barrier_intakes","youth_profiles","caseworkers","clinicians","facilities",
+    "assessments","care_assignments","mat_prescriptions","program_placements",
+    "recovery_milestones","digital_activity_traces",
+}
 
 class TestDatabaseSchema(unittest.TestCase):
     def setUp(self):
-        self.db_path = DB_PATH
+        self.tempdir = tempfile.TemporaryDirectory()
+        self.db_path = Path(self.tempdir.name) / "test.db"
+        seed_database(self.db_path)
 
-    def test_database_exists(self):
-        """Verify the synthetic test database exists."""
-        self.assertTrue(
-            self.db_path.exists(),
-            f"Database file not found at {self.db_path}",
-        )
+    def tearDown(self):
+        self.tempdir.cleanup()
 
     def test_core_tables_exist(self):
-        """Verify that all core tables are present in the schema."""
-        expected_tables = {
-            "youth_profiles",
-            "caseworkers",
-            "clinicians",
-            "assessments",
-            "care_assignments",
-            "mat_prescriptions",
-            "facilities",
-        }
-
         with sqlite3.connect(self.db_path) as connection:
-            rows = connection.execute(
-                "SELECT name FROM sqlite_master WHERE type='table';"
-            ).fetchall()
-        tables = {row[0] for row in rows}
+            tables={r[0] for r in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        self.assertTrue(EXPECTED_TABLES.issubset(tables), EXPECTED_TABLES - tables)
 
-        for table in expected_tables:
-            self.assertIn(
-                table,
-                tables,
-                f"Mandatory table '{table}' is missing from the database schema.",
-            )
+    def test_foreign_keys_and_integrity(self):
+        with sqlite3.connect(self.db_path) as connection:
+            connection.execute("PRAGMA foreign_keys = ON")
+            self.assertEqual(connection.execute("PRAGMA foreign_keys").fetchone()[0],1)
+            self.assertEqual(connection.execute("PRAGMA foreign_key_check").fetchall(),[])
+            self.assertEqual(connection.execute("PRAGMA integrity_check").fetchone()[0],"ok")
 
     def test_clinician_npi_constraint(self):
-        """Verify that the clinicians table contains the NPI column."""
         with sqlite3.connect(self.db_path) as connection:
-            rows = connection.execute("PRAGMA table_info(clinicians);").fetchall()
-        columns = [row[1] for row in rows]
-        self.assertIn(
-            "npi_number",
-            columns,
-            "The 'npi_number' column is missing from the clinicians table.",
-        )
+            columns=[r[1] for r in connection.execute("PRAGMA table_info(clinicians)")]
+        self.assertIn("npi_number",columns)
 
+    def test_low_barrier_intake_accepts_miscellaneous(self):
+        with sqlite3.connect(self.db_path) as connection:
+            connection.execute("PRAGMA foreign_keys = ON")
+            connection.execute(
+                "INSERT INTO low_barrier_intakes (intake_code,immediate_need,intake_method) VALUES (?,?,?)",
+                ("SH-TAY-TEST","miscellaneous","web"),
+            )
+            self.assertEqual(connection.execute("SELECT immediate_need FROM low_barrier_intakes WHERE intake_code=?",("SH-TAY-TEST",)).fetchone()[0],"miscellaneous")
 
 if __name__ == "__main__":
     unittest.main()
