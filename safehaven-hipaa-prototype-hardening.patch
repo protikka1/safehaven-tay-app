@@ -1,0 +1,315 @@
+From 2de23797745171ea84b526f85a1a0cbd990ea1ab Mon Sep 17 00:00:00 2001
+From: Codex <codex@openai.com>
+Date: Mon, 7 Sep 2026 13:45:53 -0700
+Subject: [PATCH] Harden prototype against real health data
+
+---
+ .env.example                |  1 +
+ README.md                   |  4 +++
+ app.py                      | 55 +++++++++++++++++++------------------
+ docs/HIPAA_READINESS.md     | 49 +++++++++++++++++++++++++++++++++
+ privacy_guard.py            | 40 +++++++++++++++++++++++++++
+ tests/test_privacy_guard.py | 38 +++++++++++++++++++++++++
+ 6 files changed, 160 insertions(+), 27 deletions(-)
+ create mode 100644 docs/HIPAA_READINESS.md
+ create mode 100644 privacy_guard.py
+ create mode 100644 tests/test_privacy_guard.py
+
+diff --git a/.env.example b/.env.example
+index b99edba..b7f7720 100644
+--- a/.env.example
++++ b/.env.example
+@@ -1,5 +1,6 @@
+ # Copy this file to .env only when a local integration requires it.
+ # Never place real credentials in this example file.
++SAFEHAVEN_DEMO_MODE=true
+ TWILIO_ACCOUNT_SID=
+ TWILIO_AUTH_TOKEN=
+ TWILIO_FROM_NUMBER=
+diff --git a/README.md b/README.md
+index 0a6b967..e3815dc 100644
+--- a/README.md
++++ b/README.md
+@@ -3,6 +3,10 @@
+ > **Prototype status:** This repository contains a local development prototype.
+ > It is not a production clinical system and must not store real patient data.
+ 
++The application is locked to synthetic demo data. Before any ePHI use, complete
++every applicable item in [the HIPAA readiness checklist](docs/HIPAA_READINESS.md)
++and obtain organizational legal, privacy, and security approval.
++
+ ## Quick start (macOS/Linux)
+ 
+ Python 3.12 is the supported development version.
+diff --git a/app.py b/app.py
+index 65700c0..b96ecef 100644
+--- a/app.py
++++ b/app.py
+@@ -4,16 +4,18 @@ from __future__ import annotations
+ 
+ import sqlite3
+ import uuid
+-from datetime import date, datetime, timedelta, timezone
++from datetime import date, datetime, timezone
+ from pathlib import Path
+ 
+ import streamlit as st
+ 
+ from database.seed import DEFAULT_DB_PATH, seed_database
+ from fccw_watchdog import audit_project
++from privacy_guard import approximate_birth_date, demo_alias, require_demo_mode
+ 
+ 
+ TODAY = datetime.now(timezone.utc).date()
++require_demo_mode()
+ 
+ 
+ def db_connection() -> sqlite3.Connection:
+@@ -53,10 +55,7 @@ def load_dashboard_data() -> tuple[
+ 
+ def create_atomic_intake(
+     alias: str,
+-    first_name: str,
+-    last_name: str,
+     date_of_birth: date,
+-    phone: str,
+     primary_substance: str,
+     overdose_count: int,
+ ) -> str:
+@@ -91,10 +90,10 @@ def create_atomic_intake(
+             (
+                 youth_id,
+                 alias.strip(),
+-                first_name.strip() or None,
+-                last_name.strip() or None,
++                None,
++                None,
+                 date_of_birth.isoformat(),
+-                phone.strip() or None,
++                None,
+             ),
+         )
+         connection.execute(
+@@ -148,6 +147,10 @@ st.title("SafeHaven TAY")
+ st.caption(
+     "Low-barrier recovery intake, care coordination, and community monitoring"
+ )
++st.warning(
++    "DEMONSTRATION ONLY — do not enter real names, birth dates, phone numbers, "
++    "addresses, medical record numbers, or other identifying information."
++)
+ 
+ facilities, placements, mats = load_dashboard_data()
+ intake_tab, watchdog_tab = st.tabs(["Recovery intake", "FCCW watch"])
+@@ -170,21 +173,17 @@ with intake_tab:
+             st.info("No facilities have been configured yet.")
+ 
+     with intake:
+-        st.subheader("One-click recovery intake")
+-        st.info("A street alias is enough to begin. Legal names are optional.")
+-        max_birth = TODAY - timedelta(days=18 * 365)
+-        min_birth = TODAY - timedelta(days=25 * 365) + timedelta(days=1)
++        st.subheader("Synthetic recovery-intake simulation")
++        st.info(
++            "Use an invented participant ID. Direct identifiers are disabled."
++        )
+         with st.form("quick_intake_form", clear_on_submit=True):
+-            alias = st.text_input("Street alias", max_chars=80)
+-            first_name = st.text_input("First name (optional)")
+-            last_name = st.text_input("Last name (optional)")
+-            date_of_birth = st.date_input(
+-                "Date of birth (ages 18-24)",
+-                value=max_birth,
+-                min_value=min_birth,
+-                max_value=max_birth,
++            participant_id = st.text_input(
++                "Invented participant ID",
++                max_chars=24,
++                placeholder="Example: TEST-001",
+             )
+-            phone = st.text_input("SafeLink phone (optional)")
++            age = st.number_input("Synthetic age", 18, 24, 18)
+             substance = st.selectbox(
+                 "Primary substance",
+                 [
+@@ -196,23 +195,25 @@ with intake_tab:
+                 ],
+             )
+             overdose_count = st.number_input(
+-                "Overdose history count", 0, 20, 0
++                "Synthetic overdose-history count", 0, 20, 0
++            )
++            acknowledged = st.checkbox(
++                "I confirm this entry is entirely fictional and contains no "
++                "real person's information."
+             )
+             submitted = st.form_submit_button(
+                 "Book and initiate MAT treatment"
+             )
+         if submitted:
+-            if not alias.strip():
+-                st.error("An alias is required.")
++            if not acknowledged:
++                st.error("Confirm that the record is entirely fictional.")
+             else:
+                 try:
++                    alias = demo_alias(participant_id)
+                     st.success(
+                         create_atomic_intake(
+                             alias,
+-                            first_name,
+-                            last_name,
+-                            date_of_birth,
+-                            phone,
++                            approximate_birth_date(int(age), TODAY),
+                             substance,
+                             overdose_count,
+                         )
+diff --git a/docs/HIPAA_READINESS.md b/docs/HIPAA_READINESS.md
+new file mode 100644
+index 0000000..e6f465a
+--- /dev/null
++++ b/docs/HIPAA_READINESS.md
+@@ -0,0 +1,49 @@
++# HIPAA Readiness Checklist
++
++## Status and scope
++
++This public repository is a **demonstration prototype**. It is not approved to
++create, receive, maintain, or transmit electronic protected health information
++(ePHI), and this checklist is not a certification of HIPAA compliance.
++
++The prototype currently reduces privacy risk by requiring demo mode, removing
++direct-identifier fields from the intake interface, labeling records as
++synthetic, ignoring local databases and secrets in Git, and testing its privacy
++guardrails in CI.
++
++## Required before any ePHI use
++
++- [ ] Determine whether the operator is a covered entity or business associate.
++- [ ] Complete and document an organization-wide HIPAA security risk analysis.
++- [ ] Approve a risk-management plan and assign a security official.
++- [ ] Establish Privacy, Security, Breach Notification, sanctions, training,
++      incident-response, contingency, backup, disaster-recovery, retention, and
++      disposal policies.
++- [ ] Execute Business Associate Agreements with every service provider that
++      creates, receives, maintains, or transmits ePHI.
++- [ ] Select a HIPAA-eligible managed database and services covered by signed
++      BAAs; do not assume that a service is compliant merely because it offers
++      eligible products.
++- [ ] Replace local SQLite ePHI storage with the approved managed database.
++- [ ] Implement unique user accounts, MFA, role-based least privilege,
++      authorization checks, emergency access, automatic logoff, and session
++      revocation.
++- [ ] Implement encryption in transit and at rest with managed keys, rotation,
++      restricted key access, and documented recovery procedures.
++- [ ] Implement tamper-resistant audit logging for access, exports, changes,
++      authentication events, administrator actions, and disclosures; exclude
++      clinical content and secrets from logs.
++- [ ] Define minimum-necessary data collection, retention periods, deletion,
++      data-subject workflows, and approved de-identification procedures.
++- [ ] Perform vulnerability scanning, dependency review, penetration testing,
++      backup restoration tests, incident exercises, and access reviews.
++- [ ] Complete legal, privacy, security, and clinical safety review before
++      production authorization.
++
++## Authoritative references
++
++- HHS, Security Rule: https://www.hhs.gov/hipaa/for-professionals/security/
++- HHS, Risk Analysis Guidance: https://www.hhs.gov/hipaa/for-professionals/security/guidance/guidance-risk-analysis/
++- HHS, Technical Safeguards: https://www.hhs.gov/sites/default/files/ocr/privacy/hipaa/administrative/securityrule/techsafeguards.pdf
++- HHS, Business Associates: https://www.hhs.gov/hipaa/for-professionals/privacy/guidance/business-associates/
++- HHS, Cloud Computing: https://www.hhs.gov/hipaa/for-professionals/special-topics/health-information-technology/cloud-computing/
+diff --git a/privacy_guard.py b/privacy_guard.py
+new file mode 100644
+index 0000000..b06c4a4
+--- /dev/null
++++ b/privacy_guard.py
+@@ -0,0 +1,40 @@
++"""Privacy guardrails for the public SafeHaven demonstration prototype."""
++
++from __future__ import annotations
++
++import os
++import re
++from datetime import date
++
++
++DEMO_MODE_ENV = "SAFEHAVEN_DEMO_MODE"
++_SAFE_ID = re.compile(r"^[A-Za-z0-9_-]{3,24}$")
++
++
++def require_demo_mode() -> None:
++    """Fail closed unless this public prototype explicitly runs in demo mode."""
++    if os.getenv(DEMO_MODE_ENV, "true").strip().lower() not in {
++        "1",
++        "true",
++        "yes",
++    }:
++        raise RuntimeError(
++            "This repository is demo-only and cannot process real health data."
++        )
++
++
++def demo_alias(participant_id: str) -> str:
++    """Return a clearly synthetic identifier without accepting free-form PII."""
++    value = participant_id.strip()
++    if not _SAFE_ID.fullmatch(value):
++        raise ValueError(
++            "Use 3-24 letters, numbers, underscores, or hyphens only."
++        )
++    return f"DEMO-{value.upper()}"
++
++
++def approximate_birth_date(age: int, today: date) -> date:
++    """Generate a non-exact date for a synthetic 18-24-year-old record."""
++    if not 18 <= age <= 24:
++        raise ValueError("Demo age must be between 18 and 24.")
++    return date(today.year - age, 1, 1)
+diff --git a/tests/test_privacy_guard.py b/tests/test_privacy_guard.py
+new file mode 100644
+index 0000000..5daeef9
+--- /dev/null
++++ b/tests/test_privacy_guard.py
+@@ -0,0 +1,38 @@
++import os
++import unittest
++from datetime import date
++from unittest.mock import patch
++
++from privacy_guard import approximate_birth_date, demo_alias, require_demo_mode
++
++
++class TestPrivacyGuard(unittest.TestCase):
++    def test_demo_mode_defaults_to_enabled(self):
++        with patch.dict(os.environ, {}, clear=True):
++            require_demo_mode()
++
++    def test_non_demo_mode_fails_closed(self):
++        with patch.dict(os.environ, {"SAFEHAVEN_DEMO_MODE": "false"}):
++            with self.assertRaises(RuntimeError):
++                require_demo_mode()
++
++    def test_identifier_is_marked_synthetic(self):
++        self.assertEqual(demo_alias("test-001"), "DEMO-TEST-001")
++
++    def test_free_form_identifier_is_rejected(self):
++        with self.assertRaises(ValueError):
++            demo_alias("Jane Doe (213) 555-0100")
++
++    def test_birth_date_is_approximate(self):
++        self.assertEqual(
++            approximate_birth_date(20, date(2026, 9, 7)),
++            date(2006, 1, 1),
++        )
++
++    def test_age_outside_tay_range_is_rejected(self):
++        with self.assertRaises(ValueError):
++            approximate_birth_date(25, date(2026, 9, 7))
++
++
++if __name__ == "__main__":
++    unittest.main()
+-- 
+2.51.1
+
