@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS low_barrier_intakes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     intake_code TEXT NOT NULL UNIQUE,
     street_alias TEXT,
-    approximate_age INTEGER CHECK (approximate_age IS NULL OR approximate_age BETWEEN 18 AND 24),
+    approximate_age INTEGER CHECK (approximate_age IS NULL OR approximate_age BETWEEN 0 AND 120),
     immediate_need TEXT NOT NULL CHECK (immediate_need IN ('shelter','detox','medical','recovery','miscellaneous')),
     intake_method TEXT NOT NULL CHECK (intake_method IN ('self_checkin','caseworker','kiosk','web')),
     urgency_level TEXT NOT NULL DEFAULT 'standard' CHECK (urgency_level IN ('standard','urgent','emergency')),
