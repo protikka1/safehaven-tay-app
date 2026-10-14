@@ -82,57 +82,12 @@ def process_intake(db_path, payload):
         ))
         print(f"[SUCCESS] Saved intake assessment: ID={assessment_id}, Risk='HIGH' due to Overdose History Count={assessment_data['overdose_history_count']}")
         
-        # Step 4: Booking & Bed Reservation (First available in Substance_Use_Hub or Detox_Center)
-        cursor.execute("""
-            SELECT id, name, available_beds 
-            FROM facilities 
-            WHERE facility_type = 'Substance_Use_Hub' AND available_beds > 0 
-            LIMIT 1;
-        """)
-        target_facility = cursor.fetchone()
-        
-        if not target_facility:
-            # Fallback to Detox_Center
-            cursor.execute("""
-                SELECT id, name, available_beds 
-                FROM facilities 
-                WHERE facility_type = 'Detox_Center' AND available_beds > 0 
-                LIMIT 1;
-            """)
-            target_facility = cursor.fetchone()
-            
-        if not target_facility:
-            raise ValueError("All detox centers and substance use hubs are fully booked. No available empty beds.")
-            
-        fac_id, fac_name, fac_beds = target_facility
-        print(f"[INFO] Facility chosen: '{fac_name}' (Empty beds before booking: {fac_beds})")
-        
-        # Decrement Available Beds
-        new_beds = fac_beds - 1
-        cursor.execute("""
-            UPDATE facilities 
-            SET available_beds = ? 
-            WHERE id = ?;
-        """, (new_beds, fac_id))
-        
-        # Log Placement
-        placement_id = str(uuid.uuid4())
-        cursor.execute("""
-            INSERT INTO program_placements (id, youth_id, facility_id, placement_type, start_date, status)
-            VALUES (?, ?, ?, 'Detox_Stay', ?, 'Enrolled');
-        """, (placement_id, youth_id, fac_id, date.today().isoformat()))
-        print(f"[SUCCESS] Lock & Booked: Placement ID={placement_id} at '{fac_name}'. Available beds remaining: {new_beds}")
-        
-        # Step 5: Request clinical review.
-        # Treatment and prescribing decisions require an authorized clinician.
-        # This simulation does not select a clinician or create a prescription.
-        print(
-            "[SUCCESS] Clinical review requested. "
-            "Treatment decision pending clinician authorization."
-        )
+        # No automatic placement or prescribing: a qualified provider must accept
+        # any placement and an authorized clinician must approve treatment.
+        print("[PENDING] Human review required for shelter placement and clinical care.")
 
         conn.commit()
-        print("--- INTAKE AND BOOKING COMPLETED FLawlessly WITHOUT BARRIERS ---")
+        print("--- INTAKE RECORDED; PLACEMENT AND TREATMENT PENDING ---")
         
     except Exception as e:
         conn.rollback()
