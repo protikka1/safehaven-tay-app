@@ -210,27 +210,7 @@ def seed_100_mock_youth(db_path: Path = TEST_DB_PATH) -> Path:
                 ),
             )
 
-            if random.random() > 0.40:
-                start_date = today - timedelta(days=random.randint(1, 45))
-                connection.execute(
-                    """
-                    INSERT INTO program_placements (
-                        id, youth_id, facility_id, placement_type, start_date, status
-                    )
-                    VALUES (?, ?, ?, ?, ?, 'Enrolled')
-                    """,
-                    (
-                        _uid("placement", i),
-                        youth_id,
-                        random.choice(facility_ids),
-                        random.choice(
-                            ["Detox_Stay", "Inpatient_Rehab", "Supportive_Housing"]
-                        ),
-                        start_date.isoformat(),
-                    ),
-                )
-
-            if random.random() > 0.30:
+            # No synthetic placement without explicit eligibility and approval.\n\n            if random.random() > 0.30:
                 milestone_type = random.choice(
                     ["Counseling_Completed", "Housing_Placement", "Service_Engagement"]
                 )
