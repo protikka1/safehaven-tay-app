@@ -11,7 +11,7 @@ def age_route(approximate_age: int | None) -> str:
     if approximate_age is None:
         return "age_unknown"
 
-    if not isinstance(approximate_age, int):
+    if isinstance(approximate_age, bool) or not isinstance(approximate_age, int):
         raise TypeError("approximate_age must be an integer or None")
 
     if not 0 <= approximate_age <= 120:
