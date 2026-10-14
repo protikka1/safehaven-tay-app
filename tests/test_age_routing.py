@@ -27,6 +27,12 @@ class AgeRoutingTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             age_route(121)
 
+    def test_boolean_is_not_an_age(self):
+        with self.assertRaises(TypeError):
+            age_route(True)
+        with self.assertRaises(TypeError):
+            age_route(False)
+
     def test_schema_accepts_minor_tay_adult_and_unknown(self):
         connection = sqlite3.connect(":memory:")
 
