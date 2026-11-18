@@ -32,7 +32,18 @@ def access_granted(secret_name: str, label: str) -> bool:
 
 def show_intake() -> None:
     st.caption("Demonstration intake. Use test information only.")
-    st.warning("For an overdose or another medical emergency, call 911 immediately.")
+    st.warning("For a suspected overdose or other medical emergency, call 911 now. "
+               "You can get emergency screening and stabilizing treatment without insurance. "
+               "Do not wait for coverage approval.")
+    st.subheader("Need health coverage?")
+    st.link_button("Apply for Medi-Cal through BenefitsCal", "https://benefitscal.com/")
+    st.write("Ask a participating hospital or clinic whether you qualify for immediate, temporary "
+             "Medi-Cal through Hospital Presumptive Eligibility.")
+    st.link_button(
+        "Learn about temporary Medi-Cal coverage",
+        "https://www.dhcs.ca.gov/services/medi-cal-resources/medi-cal-eligibility-division/"
+        "hospital-presumptive-eligibility-program/",
+    )
     with st.form("intake_request"):
         age = st.selectbox("Age", ["Prefer not to say", *range(121)])
         treatment = st.checkbox("I would like help connecting with a substance use treatment clinician")

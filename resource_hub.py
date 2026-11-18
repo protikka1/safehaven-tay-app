@@ -6,7 +6,6 @@ import streamlit as st
 
 FORMS = Path(__file__).resolve().parent / "docs" / "forms"
 APPLICATIONS = (
-    ("Medi-Cal application", "https://benefitscal.com/"),
     ("Covered California application", "https://www.coveredca.com/"),
     ("CalFresh application", "https://dpss.lacounty.gov/en/food/calfresh.html"),
     ("Housing application information", "https://hacla.org/en/about-public-housing/public-housing-applicants"),
