@@ -12,6 +12,7 @@ from database.age_routing import age_route
 from database.db import DEFAULT_DB_PATH, get_connection
 from database.seed import seed_database
 from fccw_watchdog import audit_project
+from resource_hub import show_resource_hub
 
 
 def staff_access_granted() -> bool:
@@ -42,8 +43,14 @@ def record_request(alias: str, approximate_age: int | None, immediate_need: str)
     return code, route
 
 
-st.set_page_config(page_title="SafeHaven TAY | Staff Demo", layout="wide")
-st.title("SafeHaven TAY — Staff demonstration")
+st.set_page_config(page_title="SafeHaven TAY", layout="wide")
+st.title("SafeHaven TAY")
+view = st.sidebar.radio("Dashboard", ["Resource Hub", "Staff demonstration"])
+if view == "Resource Hub":
+    show_resource_hub()
+    st.stop()
+
+st.header("Staff demonstration")
 st.caption("Synthetic-data demonstration only. Not approved for real patient intake or placement.")
 if not staff_access_granted():
     st.stop()
