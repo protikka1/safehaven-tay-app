@@ -14,17 +14,20 @@ from fccw_watchdog import audit_project
 from resource_hub import show_resource_hub
 
 
-def staff_access_granted() -> bool:
-    """Fail closed: demo requires a configured access key; not production RBAC."""
+def access_granted(secret_name: str, label: str) -> bool:
+    """Check the configured access key for this demonstration view."""
     try:
-        expected = st.secrets.get("SAFEHAVEN_STAFF_ACCESS_KEY", "")
-    except Exception:
+        expected = st.secrets.get(secret_name, "")
+    except (FileNotFoundError, KeyError):
         expected = ""
     if not expected:
-        st.error("Staff demo is disabled until an access key is configured.")
+        st.info(f"{label} is unavailable until an access key is configured.")
         return False
-    supplied = st.text_input("Staff demonstration access key", type="password")
-    return bool(supplied) and hmac.compare_digest(supplied, str(expected))
+    supplied = st.text_input(f"{label} access key", type="password", key=secret_name)
+    if supplied and not hmac.compare_digest(supplied.encode(), str(expected).encode()):
+        st.error("Incorrect access key.")
+        return False
+    return bool(supplied)
 
 
 def show_intake() -> None:
@@ -114,14 +117,21 @@ def show_caseworker_queue() -> None:
 
 st.set_page_config(page_title="SafeHaven TAY", layout="wide")
 st.title("SafeHaven TAY")
-view = st.sidebar.radio("Dashboard", ["Resource Hub", "Staff demonstration"])
-if view == "Resource Hub":
-    show_resource_hub(show_intake)
+view = st.sidebar.radio("Navigation", ["Intake", "Dashboard sign-in", "Staff demonstration"])
+if view == "Intake":
+    st.header("Intake form")
+    show_intake()
+    st.stop()
+
+if view == "Dashboard sign-in":
+    st.header("Dashboard sign-in")
+    if access_granted("SAFEHAVEN_DASHBOARD_ACCESS_KEY", "Dashboard"):
+        show_resource_hub()
     st.stop()
 
 st.header("Staff demonstration")
 st.caption("Use synthetic data for intake and assignment demonstrations.")
-if not staff_access_granted():
+if not access_granted("SAFEHAVEN_STAFF_ACCESS_KEY", "Staff"):
     st.stop()
 
 seed_database(DEFAULT_DB_PATH)

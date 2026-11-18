@@ -19,13 +19,11 @@ DOCUMENTS = (
 )
 
 
-def show_resource_hub(show_intake) -> None:
+def show_resource_hub() -> None:
     st.header("Resource Hub")
-    intake, applications, documents, involvement = st.tabs(
-        ["Intake form", "Applications", "PDF documents", "Volunteer and support"]
+    applications, documents, involvement = st.tabs(
+        ["Applications", "PDF documents", "Volunteer and support"]
     )
-    with intake:
-        show_intake()
     with applications:
         for title, url in APPLICATIONS:
             st.link_button(title, url)
