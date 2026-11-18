@@ -2,14 +2,13 @@
 from __future__ import annotations
 
 import hmac
-import secrets
+from contextlib import closing
 import sqlite3
-from pathlib import Path
 
 import streamlit as st
 
-from database.age_routing import age_route
 from database.db import DEFAULT_DB_PATH, get_connection
+from database.intake_workflow import assign_caseworker, record_request
 from database.seed import seed_database
 from fccw_watchdog import audit_project
 from resource_hub import show_resource_hub
@@ -28,58 +27,110 @@ def staff_access_granted() -> bool:
     return bool(supplied) and hmac.compare_digest(supplied, str(expected))
 
 
-def record_request(alias: str, approximate_age: int | None, immediate_need: str) -> tuple[str, str]:
-    """Record an initial request without reserving beds or issuing prescriptions."""
-    route = age_route(approximate_age)
-    code = "SH-" + secrets.token_hex(12).upper()
-    with get_connection(DEFAULT_DB_PATH) as conn:
-        conn.execute(
-            """INSERT INTO low_barrier_intakes
-               (intake_code, street_alias, approximate_age, immediate_need,
-                intake_method, status)
-               VALUES (?, ?, ?, ?, 'web', 'open')""",
-            (code, alias.strip() or None, approximate_age, immediate_need),
-        )
-    return code, route
+def show_intake() -> None:
+    st.caption("Demonstration intake. Use test information only.")
+    st.warning("For an overdose or another medical emergency, call 911 immediately.")
+    with st.form("intake_request"):
+        age = st.selectbox("Age", ["Prefer not to say", *range(121)])
+        treatment = st.checkbox("I would like help connecting with a substance use treatment clinician")
+        submitted = st.form_submit_button("Submit intake")
+    if submitted:
+        try:
+            seed_database(DEFAULT_DB_PATH)
+            st.session_state.intake_result = (
+                record_request(DEFAULT_DB_PATH, age if isinstance(age, int) else None, treatment),
+                treatment,
+            )
+        except (sqlite3.Error, RuntimeError):
+            st.error("The intake could not be recorded. If you need shelter help now, call 211.")
+            return
+
+    if "intake_result" not in st.session_state:
+        return
+    (code, route, beds), treatment = st.session_state.intake_result
+    st.success(f"Intake recorded. Reference number {code}")
+    st.subheader("1. Bed search")
+    if route == "tay":
+        for name, phone in beds:
+            st.write(f"{name} · {phone}" if phone else name)
+        if beds:
+            st.caption("These are local records. Staff must confirm eligibility and availability.")
+        else:
+            st.info("No youth bed candidates were found in the local records. Call 211 for shelter navigation.")
+    else:
+        messages = {
+            "minor_safeguarding": "A youth-serving specialist should review this intake for safe placement.",
+            "adult_referral": "A navigator should review this intake for an adult housing referral.",
+            "age_unknown": "A navigator should confirm the appropriate youth or adult housing pathway.",
+        }
+        st.info(messages[route])
+
+    if treatment:
+        st.subheader("2. Connect with a clinician")
+        st.write("Call LA County’s 24/7 substance use referral line at 844-804-7500. "
+                 "Ask about urgent outpatient or telehealth evaluation and medication options. "
+                 "A qualified clinician evaluates treatment needs.")
+        st.link_button("LA County treatment referrals",
+                       "https://admin.publichealth.lacounty.gov/sapc/public/corecenter/")
+    st.subheader("Caseworker follow-up")
+    st.write("This intake entered the staff review queue for caseworker assignment.")
+
+
+def show_caseworker_queue() -> None:
+    with closing(get_connection(DEFAULT_DB_PATH)) as conn:
+        pending = conn.execute(
+            """SELECT id, intake_code, approximate_age, immediate_need FROM low_barrier_intakes
+               WHERE status IN ('open', 'assessment', 'service_pending') ORDER BY created_at, id"""
+        ).fetchall()
+        workers = conn.execute(
+            "SELECT id, full_name FROM caseworkers WHERE is_active = 1 ORDER BY full_name"
+        ).fetchall()
+
+    if not pending:
+        st.info("No intakes are waiting for assignment.")
+        return
+    if not workers:
+        st.info("An active caseworker is needed before an intake can be assigned.")
+        return
+    requests = {row["id"]: row for row in pending}
+    names = {row["id"]: row["full_name"] for row in workers}
+    intake_id = st.selectbox("Intake", list(requests),
+                             format_func=lambda key: requests[key]["intake_code"])
+    request = requests[intake_id]
+    age = request["approximate_age"]
+    st.write(f"Age {age if age is not None else 'unknown'} · Need {request['immediate_need']}")
+    with st.form("caseworker_assignment"):
+        worker_id = st.selectbox("Caseworker", list(names), format_func=names.__getitem__)
+        submitted = st.form_submit_button("Assign caseworker")
+    if submitted:
+        try:
+            assign_caseworker(DEFAULT_DB_PATH, intake_id, worker_id)
+        except (ValueError, sqlite3.Error) as error:
+            st.error(str(error))
+        else:
+            st.session_state.assignment_notice = f"Assigned {request['intake_code']} to {names[worker_id]}."
+            st.rerun()
 
 
 st.set_page_config(page_title="SafeHaven TAY", layout="wide")
 st.title("SafeHaven TAY")
 view = st.sidebar.radio("Dashboard", ["Resource Hub", "Staff demonstration"])
 if view == "Resource Hub":
-    show_resource_hub()
+    show_resource_hub(show_intake)
     st.stop()
 
 st.header("Staff demonstration")
-st.caption("Synthetic-data demonstration only. Not approved for real patient intake or placement.")
+st.caption("Use synthetic data for intake and assignment demonstrations.")
 if not staff_access_granted():
     st.stop()
 
 seed_database(DEFAULT_DB_PATH)
-intake_tab, watchdog_tab = st.tabs(["Low-barrier request", "FCCW watch"])
-with intake_tab:
-    st.info("Requests can be recorded without legal name, birth date, phone, or clinical disclosures.")
-    with st.form("intake_request", clear_on_submit=True):
-        alias = st.text_input("Street alias (optional)", max_chars=80)
-        age_known = st.checkbox("Approximate age known")
-        age = st.number_input("Approximate age", min_value=0, max_value=120, value=18) if age_known else None
-        need = st.selectbox("Immediate need", ["shelter", "detox", "medical", "recovery", "miscellaneous"])
-        submitted = st.form_submit_button("Record request — no bed booking")
-    if submitted:
-        try:
-            code, route = record_request(alias, int(age) if age is not None else None, need)
-            st.success(f"Request recorded: {code}")
-            if route == "minor_safeguarding":
-                st.warning("Minor: refer promptly to qualified child-serving personnel. No adult-shelter placement.")
-            elif route == "age_unknown":
-                st.warning("Age unknown: protected age and safety assessment required before any placement.")
-            elif route == "adult_referral":
-                st.info("Adult referral pathway: human service review required.")
-            else:
-                st.info("TAY pathway: staff assessment and provider acceptance required before any placement.")
-            st.caption("This demonstration does not contact emergency services or send referrals.")
-        except (ValueError, sqlite3.Error) as error:
-            st.error(f"Request could not be recorded: {error}")
+queue_tab, watchdog_tab = st.tabs(["Caseworker queue", "FCCW watch"])
+with queue_tab:
+    notice = st.session_state.pop("assignment_notice", None)
+    if notice:
+        st.success(notice)
+    show_caseworker_queue()
 
 with watchdog_tab:
     st.subheader("Fourth & Central project audit")

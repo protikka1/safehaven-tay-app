@@ -100,3 +100,9 @@ CREATE INDEX IF NOT EXISTS idx_assessments_youth ON assessments(youth_id);
 CREATE INDEX IF NOT EXISTS idx_care_assignments_youth ON care_assignments(youth_id);
 CREATE INDEX IF NOT EXISTS idx_program_placements_youth ON program_placements(youth_id);
 CREATE INDEX IF NOT EXISTS idx_recovery_milestones_youth ON recovery_milestones(youth_id);
+
+CREATE TABLE IF NOT EXISTS intake_caseworker_assignments (
+    intake_id INTEGER PRIMARY KEY REFERENCES low_barrier_intakes(id) ON DELETE CASCADE,
+    caseworker_id TEXT NOT NULL REFERENCES caseworkers(id),
+    assigned_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
