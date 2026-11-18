@@ -106,3 +106,17 @@ CREATE TABLE IF NOT EXISTS intake_caseworker_assignments (
     caseworker_id TEXT NOT NULL REFERENCES caseworkers(id),
     assigned_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS client_profile_entries (
+    id INTEGER PRIMARY KEY,
+    intake_id INTEGER NOT NULL REFERENCES intake_caseworker_assignments(intake_id) ON DELETE CASCADE,
+    category TEXT NOT NULL,
+    title TEXT NOT NULL,
+    status TEXT NOT NULL,
+    notes TEXT NOT NULL DEFAULT '',
+    pdf BLOB CHECK (pdf IS NULL OR length(pdf) <= 5242880),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_client_profile_entries_intake
+    ON client_profile_entries(intake_id, id);

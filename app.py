@@ -7,6 +7,7 @@ import sqlite3
 
 import streamlit as st
 
+from client_profiles import show_client_profiles
 from database.db import DEFAULT_DB_PATH, get_connection
 from database.intake_workflow import assign_caseworker, record_request
 from database.seed import seed_database
@@ -146,12 +147,15 @@ if not access_granted("SAFEHAVEN_STAFF_ACCESS_KEY", "Staff"):
     st.stop()
 
 seed_database(DEFAULT_DB_PATH)
-queue_tab, watchdog_tab = st.tabs(["Caseworker queue", "FCCW watch"])
+queue_tab, profiles_tab, watchdog_tab = st.tabs(["Caseworker queue", "Client profiles", "FCCW watch"])
 with queue_tab:
     notice = st.session_state.pop("assignment_notice", None)
     if notice:
         st.success(notice)
     show_caseworker_queue()
+
+with profiles_tab:
+    show_client_profiles(DEFAULT_DB_PATH)
 
 with watchdog_tab:
     st.subheader("Fourth & Central project audit")
