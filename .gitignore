@@ -25,3 +25,50 @@ env/
 .LSOverride
 Icon?
 ._*
+
+# Node.js dependencies
+node_modules/
+website/node_modules/
+
+# Build output
+dist/
+build/
+coverage/
+.vite/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+serviceAccountKey.json
+*-firebase-adminsdk-*.json
+
+# Logs and temporary files
+*.log
+npm-debug.log*
+.DS_Store
+*.tmp
+*.bak
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Editor settings
+.vscode/
+.idea/
+
+# Firebase local files
+.firebase/
+firebase-debug.log
+website/starter-extract/
