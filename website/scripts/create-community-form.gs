@@ -35,6 +35,7 @@ function createSafeHavenCommunityForm() {
       'Privacy and safeguarding',
       'Community oversight and accountability'
     ])
+    .setValidation(FormApp.createCheckboxValidation().requireSelectAtMost(2).build())
     .setRequired(true);
 
   form.addMultipleChoiceItem()
