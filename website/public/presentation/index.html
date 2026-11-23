@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#102f37">
+<meta name="description" content="SafeHaven TAY grassroots community presentation, slides and spoken overview.">
+<title>Community Presentation | SafeHaven TAY</title>
+<style>
+:root{color-scheme:light}*{box-sizing:border-box}body{margin:0;font:16px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;color:#18313a;background:#f5f8f7}
+header{background:#102f37;color:white;padding:1rem max(1rem,calc((100vw - 1100px)/2))}
+header a{color:white}main{max-width:1100px;margin:auto;padding:1.3rem 1rem 4rem}
+h1{font-size:clamp(1.7rem,5vw,2.65rem);line-height:1.15}h2{margin:0 0 .4rem}.sub{color:#52656b}
+.panel{background:white;border:1px solid #dce7e4;border-radius:14px;padding:1.25rem;margin:1rem 0}
+.deck{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;background:#e7edec}
+.actions{display:flex;gap:.75rem;flex-wrap:wrap;margin:1rem 0}
+a.button,button{cursor:pointer;display:inline-block;border:0;border-radius:8px;padding:.75rem 1rem;background:#146b52;color:white;font-weight:700;font-size:1rem;text-decoration:none}
+button.secondary,a.secondary{background:#e9f1ee;color:#174438}
+button:disabled{opacity:.55;cursor:not-allowed}
+button:focus-visible,a:focus-visible{outline:3px solid #eaa52b;outline-offset:3px}
+small{color:#596d72}ol{padding-left:1.4rem}li{margin:.55rem 0}.note{border-left:4px solid #146b52;padding-left:1rem}
+@media(max-width:600px){.deck{aspect-ratio:4/3}.actions>a,.actions>button{flex:1 1 100%;text-align:center}}
+</style>
+</head><body>
+<header><a href="/" aria-label="Return to SafeHaven homepage">← SafeHaven TAY homepage</a></header>
+<main>
+<p class="sub">Community-led initiative · Los Angeles</p>
+<h1>SafeHaven TAY Community Presentation</h1>
+<p>Tuesday, November 24, 2026 · 11:00 AM PST</p>
+<p>Follow the slides, listen to a spoken project overview on a supported browser, and return to this page later.</p>
+<section class="panel" aria-label="Google Slides presentation">
+<h2>Community proposal slides</h2>
+<iframe class="deck" src="https://docs.google.com/presentation/d/1zGvwArG2vWvufZ5oY40j7suGFmrkWh1s-7QuYL6NScQ/embed?start=false&amp;loop=false&amp;delayms=60000" title="SafeHaven TAY community proposal Google Slides" loading="lazy" allowfullscreen></iframe>
+<div class="actions"><a class="button" href="https://docs.google.com/presentation/d/1zGvwArG2vWvufZ5oY40j7suGFmrkWh1s-7QuYL6NScQ/edit" target="_blank" rel="noopener noreferrer">Open slides in Google Drive</a></div>
+<small>If the embedded slides do not load, use the Open slides button. You may need an internet connection.</small>
+</section>
+<section class="panel" aria-label="Spoken project overview">
+<h2>Listen to the presentation overview</h2>
+<p>The listen option reads the overview below using your device's browser voice. It does not automatically advance the Google Slides.</p>
+<div class="actions"><button id="play" type="button">▶ Listen</button><button id="stop" class="secondary" type="button">■ Stop</button></div>
+<p id="speech-status" role="status" aria-live="polite">Ready.</p>
+<div id="script">
+<p>Welcome. Thank you for joining our SafeHaven TAY grassroots community presentation. SafeHaven TAY is a developing community technology project focused on transition-age youth, ages eighteen to twenty-four, in and around Skid Row, Los Angeles.</p>
+<p>Our mission is to make it easier for young people to find a path toward stability, with fewer unnecessary barriers and more human guidance. Too often, youth must navigate disconnected systems while trying to find housing, health care, treatment, and support.</p>
+<p>SafeHaven TAY proposes a low-barrier starting point. A young person should be able to begin asking for help without first providing a permanent address or sharing more sensitive information than is necessary. With consent, a trained navigator or caseworker can help identify needs, verify options, coordinate referrals, and follow up.</p>
+<p>Our application prototype includes an intake workflow and a local database design for coordinating services. It is not yet a live clinical or housing placement service. We still need verified provider information, formal partnerships, security review, and careful pilot testing before handling real participant records.</p>
+<p>Privacy and dignity are central to this design. Youth records and employee information belong in the protected application, not on this public website. Real medical care must be provided by qualified professionals, with appropriate consent and choice.</p>
+<p>Today, we are inviting the grassroots community to help shape priorities. Our Advisory Team can guide ethics and community needs. Our Development Team can test and improve the technology. Our Action Team can support outreach, relationships, and community organizing.</p>
+<p>We are seeking practical feedback, organizational partnerships, volunteer participation, and opportunities to test the approach responsibly. Thank you for reviewing SafeHaven TAY. Your experience and community knowledge should help determine what we build next.</p>
+</div>
+</section>
+<section class="panel"><h2>Community feedback survey</h2>
+<p>We are preparing a short optional Google Form for feedback on community priorities, accessibility, and participation in the Advisory, Development, or Action teams.</p>
+<p class="note">The survey link will appear here once the Google Form is published. Please do not submit youth intake or confidential health information through the public feedback form.</p>
+</section>
+</main>
+<script>
+(function(){
+const play=document.getElementById('play'),stop=document.getElementById('stop'),status=document.getElementById('speech-status');
+if(!('speechSynthesis' in window)){play.disabled=true;status.textContent='Speech playback is not supported in this browser.';return;}
+const synth=window.speechSynthesis;
+play.addEventListener('click',function(){synth.cancel();const utterance=new SpeechSynthesisUtterance(document.getElementById('script').innerText);utterance.lang='en-US';utterance.rate=.92;utterance.onstart=()=>status.textContent='Playing spoken overview.';utterance.onend=()=>status.textContent='Finished.';utterance.onerror=()=>status.textContent='Speech playback could not complete.';synth.speak(utterance);});
+stop.addEventListener('click',function(){synth.cancel();status.textContent='Stopped.';});
+window.addEventListener('pagehide',()=>synth.cancel());
+})();
+</script>
+</body></html>
