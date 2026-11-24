@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SafeHaven TAY | Interactive App Demonstration</title>
+<meta name="description" content="Explore a fictional SafeHaven TAY youth-support workflow in a safe, self-contained demo.">
+<style>
+:root{color-scheme:light;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#f3f7f6;color:#17333d}*{box-sizing:border-box}
+body{margin:0;line-height:1.55}header{background:#102f37;color:white;padding:17px max(18px,calc((100vw - 1080px)/2))}
+header a{color:white}main{max-width:1080px;margin:auto;padding:22px 16px 64px}h1{font-size:clamp(1.7rem,4vw,2.7rem);line-height:1.2;margin:0 0 10px}h2{margin:0 0 8px;font-size:1.4rem}h3{margin:8px 0}
+p{margin:8px 0 13px}.muted{color:#4c626b}small{color:#516a72}strong{font-weight:700}
+.banner{background:#fff7e7;border:1px solid #edd2a2;padding:13px 16px;border-radius:10px;margin:16px 0}
+.card{border:1px solid #d9e6e1;border-radius:14px;padding:20px;background:white;margin:14px 0;box-shadow:0 1px 8px #0e2f3b0a}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.tabs button{flex:1 1 170px}
+button,.btn{border:0;border-radius:8px;padding:11px 15px;background:#12664e;color:white;font-weight:700;font:inherit;cursor:pointer;text-decoration:none;display:inline-block}
+button[aria-selected="true"]{background:#102f37}button.secondary,.btn.secondary{background:#dcebe5;color:#164c3b}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #e3a338;outline-offset:3px}button:disabled{opacity:.6;cursor:not-allowed}
+fieldset{border:none;padding:0;margin:0 0 16px}label{display:block;font-weight:650;margin:14px 0 5px}select,input[type=text]{width:100%;border:1px solid #aabebb;border-radius:8px;padding:12px;font:inherit;background:white}
+.check{display:flex;align-items:flex-start;gap:10px;font-weight:400}.check input{margin-top:6px;accent-color:#12664e}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.metric{background:#f2f7f5;padding:14px;border-radius:8px}.metric b{display:block;font-size:1.55rem}
+.steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:16px 0}.step{padding:12px;border-radius:8px;background:#edf4f1;border:1px solid #d7e6e0;font-size:.9rem}.step strong{display:block}
+.status{padding:9px 13px;border-radius:8px;background:#e5f4e9;color:#205338;font-weight:650;display:inline-block}.notice{padding:11px 14px;border-left:4px solid #12664e;background:#eef7f3;margin:13px 0}
+.events{list-style:none;padding:0}.events li{border-left:3px solid #a8c8b9;padding:3px 0 15px 14px;margin-left:7px}
+[hidden]{display:none!important}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+@media(max-width:680px){.grid{grid-template-columns:1fr}.steps{grid-template-columns:repeat(2,minmax(0,1fr))}.card{padding:15px}.tabs button{flex:1 1 43%}}
+</style></head><body>
+<header><a href="/presentation/">← Community presentation</a> · <a href="/">Homepage</a></header>
+<main>
+<p class="muted">SafeHaven TAY · Community technology prototype</p><h1>Interactive app demonstration</h1>
+<p>Explore the proposed support journey from a low-barrier request to a navigator review and coordinated referrals. Designed for phones and desktop browsers.</p>
+<div class="banner" role="note"><strong>DEMO — FICTIONAL DATA ONLY.</strong> This page is not a live intake, housing placement, treatment service, or staffed referral system. Nothing entered here is submitted, stored, emailed, or sent to the SafeHaven database. Do not enter real personal or health information.</div>
+<nav class="tabs" aria-label="Demo sections">
+<button type="button" data-tab="intake" aria-selected="true">1. Youth request</button>
+<button type="button" data-tab="queue" aria-selected="false">2. Caseworker queue</button>
+<button type="button" data-tab="navigation" aria-selected="false">3. Service navigation</button>
+<button type="button" data-tab="summary" aria-selected="false">4. Demo summary</button>
+</nav>
+<section id="intake" class="card" aria-labelledby="intake-title"><h2 id="intake-title">Low-barrier support request</h2>
+<p class="muted">No legal name, identification, permanent address, insurance, or phone number is required in this simulation.</p>
+<form id="demo-form">
+<div class="grid"><div><label for="alias">Fictional alias</label><input id="alias" type="text" maxlength="30" value="Sky" autocomplete="off" aria-describedby="alias-help"><small id="alias-help">Demo character only; please leave as a fictional name.</small></div>
+<div><label for="age">Approximate age</label><select id="age"><option value="20">20 (TAY example)</option><option value="18">18</option><option value="24">24</option><option value="unknown">Prefer not to say</option><option value="17">17 (specialist review)</option><option value="26">26 (adult referral pathway)</option></select></div></div>
+<fieldset><legend style="font-weight:700;margin-top:16px">What help is requested?</legend>
+<label class="check"><input type="checkbox" id="housing" checked>Housing and shelter navigation</label>
+<label class="check"><input type="checkbox" id="care" checked>Talk with a qualified health or substance-use treatment clinician</label>
+<label class="check"><input type="checkbox" id="benefits">Help exploring benefits and coverage</label>
+</fieldset>
+<button type="submit">Start fictional intake</button> <button class="secondary" type="button" id="reset">Reset demo</button></form>
+<div class="notice" id="intake-status" role="status" aria-live="polite">Choose the example needs and select “Start fictional intake.”</div>
+</section>
+<section id="queue" class="card" hidden aria-labelledby="queue-title"><h2 id="queue-title">Navigator / caseworker review queue</h2>
+<p>A human caseworker reviews the request before coordinating appropriate next steps. Nothing in this demo creates an actual assignment.</p>
+<div id="queue-content"><p>No simulated intake yet. Start at Step 1.</p></div>
+</section>
+<section id="navigation" class="card" hidden aria-labelledby="navigation-title"><h2 id="navigation-title">Housing, clinical, and benefits navigation</h2>
+<div id="nav-content"><p>Start a fictional intake to explore possible follow-up pathways.</p></div>
+</section>
+<section id="summary" class="card" hidden aria-labelledby="summary-title"><h2 id="summary-title">Community demonstration summary</h2>
+<div id="summary-content"><p>Complete Step 1 to generate a fictional workflow summary.</p></div>
+<div class="actions"><a href="/presentation/" class="btn secondary">Return to presentation</a><a href="https://github.com/protikka1/safehaven-tay-app" class="btn secondary" target="_blank" rel="noopener noreferrer">View development repository</a></div>
+</section>
+<div class="card"><h2>What the real application requires before deployment</h2>
+<div class="grid"><div><h3>Human oversight</h3><p>Qualified clinicians make medical decisions; navigators verify eligibility and availability and obtain appropriate consent.</p></div>
+<div><h3>Technical safeguards</h3><p>Restricted staff access, logging, secure hosting, reviewed data retention, verified resource records, and pilot testing are still required.</p></div></div>
+<p><strong>Emergency:</strong> This demo is not monitored. In an emergency, call 911. For local social-service navigation, call 211.</p>
+</div>
+</main><script>
+(()=>{'use strict';
+let current=null,assigned=false,history=[];const sections=[...document.querySelectorAll('main>section[id]')],tabs=[...document.querySelectorAll('[data-tab]')];
+const safe=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const status=document.getElementById('intake-status');
+function show(id){sections.forEach(s=>s.hidden=s.id!==id);tabs.forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===id)));document.getElementById(id).scrollIntoView({behavior:'smooth',block:'start'})}
+tabs.forEach(b=>b.addEventListener('click',()=>show(b.dataset.tab)));
+function route(age){if(age==='unknown')return 'navigator review (age not supplied)';const n=Number(age);return n<18?'minor safeguarding specialist review':n<=24?'TAY support navigation':'adult-service referral review'}
+function render(){
+if(!current){document.getElementById('queue-content').innerHTML='<p>No simulated intake yet. Start at Step 1.</p>';document.getElementById('nav-content').innerHTML='<p>Start a fictional intake to explore possible follow-up pathways.</p>';document.getElementById('summary-content').innerHTML='<p>Complete Step 1 to generate a fictional workflow summary.</p>';return}
+const name=safe(current.alias),need=current.needs.length?current.needs.join(', '):'General navigation';const pathway=route(current.age);
+document.getElementById('queue-content').innerHTML='<div class="grid"><div class="metric"><small>Fictional reference</small><b>DEMO-001</b></div><div class="metric"><small>Review state</small><b>'+(assigned?'Assigned':'New')+'</b></div></div><p><strong>Alias:</strong> '+name+' · <strong>Age:</strong> '+safe(current.age)+' · <strong>Pathway:</strong> '+safe(pathway)+'</p><p><strong>Requested support:</strong> '+safe(need)+'</p>'+(assigned?'<span class="status">Simulated caseworker assignment completed</span>':'<button type="button" id="assign">Assign fictional navigator</button>')+'<p><small>Demo assignment only. No staff member is contacted.</small></p>';
+const a=document.getElementById('assign');if(a)a.addEventListener('click',()=>{assigned=true;history.push('Fictional navigator assigned for review');render()});
+const housing=current.housing?'<div class="notice"><strong>Housing navigation requested.</strong> A navigator would verify current housing availability, eligibility, and the young person’s preferences. No bed is reserved or confirmed.</div>':'';
+const care=current.care?'<div class="notice"><strong>Clinical evaluation requested.</strong> A qualified clinician—not this application—would determine whether outpatient treatment, medication, telehealth, or another option is appropriate. No prescription or appointment is generated.</div>':'';
+const benefits=current.benefits?'<div class="notice"><strong>Benefits guidance requested.</strong> A navigator may help explore eligibility without making access to emergency care contingent on insurance approval.</div>':'';
+document.getElementById('nav-content').innerHTML='<p><strong>Route:</strong> '+safe(pathway)+'</p>'+(housing+care+benefits||'<div class="notice">A navigator would clarify what assistance is wanted; no specific referral was requested.</div>')+'<p><small>Resource information and any availability must be independently verified by authorized staff.</small></p>';
+document.getElementById('summary-content').innerHTML='<div class="steps"><div class="step"><strong>1. Request</strong>Simulated intake</div><div class="step"><strong>2. Review</strong>'+safe(pathway)+'</div><div class="step"><strong>3. Navigator</strong>'+(assigned?'Assigned in demo':'Not yet assigned')+'</div><div class="step"><strong>4. Referrals</strong>Not verified</div></div><h3>Fictional activity log</h3><ol class="events">'+history.map(h=>'<li>'+safe(h)+'</li>').join('')+'</ol><p><strong>No actual placement, appointment, prescription, benefit award, or referral has occurred.</strong></p>';
+}
+document.getElementById('demo-form').addEventListener('submit',e=>{e.preventDefault();current={alias:document.getElementById('alias').value.trim()||'Sky',age:document.getElementById('age').value,housing:document.getElementById('housing').checked,care:document.getElementById('care').checked,benefits:document.getElementById('benefits').checked};current.needs=[current.housing?'Housing navigation':null,current.care?'Clinical referral discussion':null,current.benefits?'Benefits information':null].filter(Boolean);assigned=false;history=['Fictional request received','Routing: '+route(current.age)];status.textContent='Fictional request DEMO-001 generated. Nothing was transmitted or saved.';render();show('queue')});
+document.getElementById('reset').addEventListener('click',()=>{current=null;assigned=false;history=[];document.getElementById('alias').value='Sky';document.getElementById('age').value='20';document.getElementById('housing').checked=true;document.getElementById('care').checked=true;document.getElementById('benefits').checked=false;status.textContent='Demo reset. No data was stored.';render();show('intake')});
+})();
+</script></body></html>
