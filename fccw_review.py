@@ -7,6 +7,7 @@ from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 import json
+import sys
 from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import urlopen
@@ -90,6 +91,9 @@ def precheck(row, live_rows, evidence):
     else:
         live = live_rows[0]
         stored_details = json.loads(row["source_details"] or "{}")
+        result["source_address"] = live.get("primary_address")
+        result["permit_status"] = live.get("status_desc")
+        result["permit_type"] = live.get("permit_type")
         result["ladbs_apn"] = live.get("apn")
         result["ladbs_zone"] = live.get("zone")
         try:
@@ -136,6 +140,30 @@ def build_report(ledger):
     ]
 
 
+def write_text_report(document, output):
+    records = document["records"]
+    print("FCCW permit review", document["checked_at"], file=output)
+    print(f"{len(records)} permits · ZIMAS parcel search: {ZIMAS}", file=output)
+    print("Candidates passed automated cross-checks. Review decisions are still pending.", file=output)
+    ordered = sorted(records, key=lambda row: (
+        row["status"] == "CANDIDATE", row["address"], row["permit_id"],
+    ))
+    for index, row in enumerate(ordered, 1):
+        apn = parcel_id(row.get("ladbs_apn"))
+        permit_url = f"{LADBS}?{urlencode({'permit_nbr': row['permit_id']})}"
+        address = row.get("source_address") or row["address"]
+        print(f"\n{index}. {row['status']} | {address}", file=output)
+        print(f"   Permit: {row['permit_id']} | UUID: {row['id']}", file=output)
+        print(f"   APN: {apn or 'Unavailable'} | Zoning: {row.get('ladbs_zone') or 'Unavailable'}",
+              file=output)
+        if row.get("permit_type") or row.get("permit_status"):
+            print(f"   Permit type: {row.get('permit_type') or 'Unavailable'}"
+                  f" | City status: {row.get('permit_status') or 'Unavailable'}", file=output)
+        print(f"   DataLA: {permit_url}", file=output)
+        for reason in row["reasons"]:
+            print(f"   Review: {reason}", file=output)
+
+
 def approve(ledger, report, reviewer, ids):
     checked = datetime.fromisoformat(report["checked_at"])
     if not timedelta(0) <= datetime.now(timezone.utc) - checked <= REPORT_MAX_AGE:
@@ -163,6 +191,8 @@ def main():
     commands = parser.add_subparsers(dest="command", required=True)
     check = commands.add_parser("check")
     check.add_argument("--report", type=Path, required=True)
+    show = commands.add_parser("show", help="Print a readable report from an existing batch check")
+    show.add_argument("--report", type=Path, required=True)
     decision = commands.add_parser("approve")
     decision.add_argument("--report", type=Path, required=True)
     decision.add_argument("--reviewer", required=True)
@@ -170,6 +200,12 @@ def main():
     selection.add_argument("--id", action="append", help="Repeat for each candidate UUID")
     selection.add_argument("--all-matches", action="store_true", help="Explicitly approve every candidate in this report")
     args = parser.parse_args()
+    if args.command == "show":
+        try:
+            write_text_report(json.loads(args.report.read_text(encoding="utf-8")), sys.stdout)
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            parser.exit(1, f"Cannot read report: {exc}\n")
+        return
     if not args.db.is_file() or args.report.resolve() == args.db.resolve():
         parser.error("Use an existing database and a separate report path.")
     try:
