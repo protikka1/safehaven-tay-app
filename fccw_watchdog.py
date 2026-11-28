@@ -341,7 +341,7 @@ class SROLedgerEngine:
     def verify_gis_record(self, record_id, reviewer, status="VERIFIED", notes=None):
         if status not in ("VERIFIED", "DISMISSED") or not reviewer.strip():
             raise ValueError("Provide a reviewer and a VERIFIED or DISMISSED decision.")
-        with self.conn:
+        with self.conn if not self.conn.in_transaction else nullcontext():
             row = self.conn.execute(
                 """UPDATE gis_live_feeds SET verification_status = ?, verified_by = ?,
                    verification_notes = ?, verified_at = CURRENT_TIMESTAMP

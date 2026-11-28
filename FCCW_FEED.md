@@ -46,3 +46,30 @@ PATH=/usr/local/bin:/usr/bin:/bin
 For Termux, run the same commands from a Termux scheduler job script, using the same database
 file as the reviewer. A failed import exits with an error and skips deployment in the command
 chain above. Freshly imported or changed permits stay pending until a reviewer approves them.
+
+## Batch review
+
+Generate a dated local report from the pending LADBS queue:
+
+```sh
+FCCW_REPORT="fccw-review-$(date +%Y%m%d-%H%M%S).json"
+python3 fccw_review.py check --report "$FCCW_REPORT"
+```
+
+The report checks the current DataLA permit against the stored permit, the DataLA APN against
+LA County parcel polygons at the permit coordinates, and the DataLA zoning text against the
+LA City Planning public zoning layer. `CANDIDATE` means those comparisons agreed. It remains
+pending in SQLite until a reviewer acts. Open ZIMAS for zoning differences, missing data and
+ambiguous parcels. The zoning layer is a cross-check and the report does not decide legal
+compliance.
+
+After reading the report, approve selected UUIDs or explicitly approve all candidates in that report:
+
+```sh
+python3 fccw_review.py approve --report "$FCCW_REPORT" --reviewer "Reviewer name" --id RECORD_UUID
+python3 fccw_review.py approve --report "$FCCW_REPORT" --reviewer "Reviewer name" --all-matches
+```
+
+Use one approval command per selection. Repeat `--id` to approve several selected UUIDs.
+Approvals are rejected if the report is older than 24 hours or a selected record changed.
+Publish with `sh fccw_publish.sh` after approval.
