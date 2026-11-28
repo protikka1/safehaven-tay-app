@@ -31,6 +31,20 @@ sh fccw_publish.sh
 Repeat the publish command after review to update the live cards immediately. The deploy command
 targets Hosting only for project `safehaven-tay`.
 
+## Browser review on the review machine
+
+From the repository root, start the local admin with the same database used by the CLI:
+
+```sh
+python3 fccw_admin.py --db civic_watchdog.db --reviewer "Abul Islam"
+```
+
+Open [Housing Watch Admin](http://127.0.0.1:8765/admin/) in a browser on the same device.
+Enter a verification note and select Verify or Dismiss. The page saves decisions in SQLite.
+Stop the server with Ctrl+C when done. Run `sh fccw_publish.sh` to publish verified pins.
+The admin listens on loopback and uses the reviewer name supplied at startup.
+It is intended for the person operating the review device.
+
 ## Daily job
 
 On the Mac or other always-on review machine, set up the following in `crontab -e`.
