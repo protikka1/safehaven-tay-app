@@ -16,6 +16,7 @@ Modules Included:
 """
 
 import argparse
+from contextlib import nullcontext
 import json
 from pathlib import Path
 import sqlite3
@@ -241,11 +242,21 @@ class SROLedgerEngine:
             CREATE INDEX IF NOT EXISTS idx_gis_verification_status
                 ON gis_live_feeds (verification_status);
         """)
-        self.conn.commit()
+        with self.conn:
+            self.conn.execute("BEGIN IMMEDIATE")
+            columns = {row["name"] for row in self.conn.execute("PRAGMA table_info(gis_live_feeds)")}
+            if "source_details" not in columns:
+                self.conn.execute("ALTER TABLE gis_live_feeds ADD COLUMN source_details TEXT")
+            self.conn.execute("""
+                CREATE TABLE IF NOT EXISTS gis_feed_sync (
+                    feed_source TEXT PRIMARY KEY,
+                    last_success_at TEXT NOT NULL
+                )
+            """)
 
     def upsert_gis_feed_record(
         self, *, feed_source, external_case_id, project_name, latitude, longitude,
-        proposed_units=0, affordable_units=0, zoning_requested=None,
+        proposed_units=0, affordable_units=0, zoning_requested=None, source_details=None,
     ):
         """Audit one source record and reopen review only when its contents change."""
         if not -90 <= latitude <= 90 or not -180 <= longitude <= 180:
@@ -258,6 +269,11 @@ class SROLedgerEngine:
             project_name, latitude, longitude, proposed_units, affordable_units,
             zoning_requested or "",
         )
+        if feed_source == "LADBS":
+            audit = {
+                "zoning_compliance": "NOT ASSESSED",
+                "warnings": ["Permit data does not establish affordability or SRO replacement obligations."],
+            }
         fields = {
             "project_name": project_name,
             "latitude": latitude,
@@ -267,9 +283,12 @@ class SROLedgerEngine:
             "zoning_requested": zoning_requested,
             "audit_status": audit["zoning_compliance"],
             "audit_warnings": json.dumps(audit["warnings"]),
+            "source_details": json.dumps(source_details, sort_keys=True) if source_details else None,
         }
-        with self.conn:
-            self.conn.execute("BEGIN IMMEDIATE")
+        owns_transaction = not self.conn.in_transaction
+        with self.conn if owns_transaction else nullcontext():
+            if owns_transaction:
+                self.conn.execute("BEGIN IMMEDIATE")
             existing = self.conn.execute(
                 "SELECT * FROM gis_live_feeds WHERE external_case_id = ?", (external_case_id,)
             ).fetchone()
@@ -294,6 +313,20 @@ class SROLedgerEngine:
             return dict(self.conn.execute(
                 "SELECT * FROM gis_live_feeds WHERE external_case_id = ?", (external_case_id,)
             ).fetchone())
+
+    def mark_feed_success(self, feed_source):
+        with self.conn if not self.conn.in_transaction else nullcontext():
+            self.conn.execute("""
+                INSERT INTO gis_feed_sync (feed_source, last_success_at)
+                VALUES (?, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+                ON CONFLICT(feed_source) DO UPDATE SET last_success_at = excluded.last_success_at
+            """, (feed_source,))
+
+    def feed_last_success(self, feed_source):
+        row = self.conn.execute(
+            "SELECT last_success_at FROM gis_feed_sync WHERE feed_source = ?", (feed_source,)
+        ).fetchone()
+        return row["last_success_at"] if row else None
 
     def list_gis_records(self, status=None):
         if status is None:

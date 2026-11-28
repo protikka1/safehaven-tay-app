@@ -17,19 +17,30 @@ PUBLIC_FIELDS = (
 )
 
 
-def export_geojson(records, output_path):
-    features = [
-        {
+def export_geojson(records, output_path, last_checked=None):
+    features = []
+    for row in records:
+        if row["verification_status"] != "VERIFIED":
+            continue
+        properties = {key: row[key] for key in PUBLIC_FIELDS}
+        if row["feed_source"] == "LADBS" and row.get("source_details"):
+            details = json.loads(row["source_details"])
+            properties["permit"] = {
+                key: details.get(key)
+                for key in ("zone", "permit_type", "submitted_date", "status_desc", "status_date")
+            }
+        features.append({
             "type": "Feature",
             "geometry": {
                 "type": "Point",
                 "coordinates": [row["longitude"], row["latitude"]],
             },
-            "properties": {key: row[key] for key in PUBLIC_FIELDS},
-        }
-        for row in records if row["verification_status"] == "VERIFIED"
-    ]
-    document = json.dumps({"type": "FeatureCollection", "features": features}, indent=2, allow_nan=False)
+            "properties": properties,
+        })
+    document = json.dumps(
+        {"type": "FeatureCollection", "features": features, "ladbs_last_checked": last_checked},
+        indent=2, allow_nan=False,
+    )
     with NamedTemporaryFile(mode="w", encoding="utf-8", dir=output_path.parent, delete=False) as tmp:
         temp_path = Path(tmp.name)
         try:
@@ -162,6 +173,7 @@ def main():
     parser.add_argument("--db", type=Path, default=DEFAULT_DB_PATH)
     parser.add_argument("--png", type=Path, default=ASSETS / "fccw_zoning_audit_map.png")
     parser.add_argument("--geojson", type=Path, default=ASSETS / "verified_watchdog.geojson")
+    parser.add_argument("--geojson-only", action="store_true")
     args = parser.parse_args()
     if not args.db.is_file():
         parser.error(f"Database missing: {args.db}. Run fccw_watchdog.py list first.")
@@ -170,12 +182,14 @@ def main():
     ledger = SROLedgerEngine(args.db)
     try:
         records = ledger.list_gis_records("VERIFIED")
+        last_checked = ledger.feed_last_success("LADBS")
     finally:
         ledger.conn.close()
-    for path in (args.png, args.geojson):
-        path.parent.mkdir(parents=True, exist_ok=True)
-    render_map_png(records, args.png)
-    export_geojson(records, args.geojson)
+    if not args.geojson_only:
+        args.png.parent.mkdir(parents=True, exist_ok=True)
+        render_map_png(records, args.png)
+    args.geojson.parent.mkdir(parents=True, exist_ok=True)
+    export_geojson(records, args.geojson, last_checked)
     print(f"Exported {len(records)} verified record(s).")
 
 

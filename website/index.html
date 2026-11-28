@@ -93,8 +93,19 @@
       </section>
 
       <section id="watchdog" class="section-pad">
-        <div class="container-xl"><div class="section-top"><div><p class="eyebrow dark">CIVIC ACCOUNTABILITY</p><h2>GIS & Civic Watchdog</h2><p class="section-desc">A public-facing workspace for planning, housing, and licensing transparency.</p></div><span class="status-label"><span class="status-dot amber"></span> Live feeds not connected</span></div>
-          <div class="row g-4"><div class="col-lg-8"><div class="content-card map-card p-0 overflow-hidden"><div id="civic-map" role="img" aria-label="Reference map of the Downtown Los Angeles and Skid Row area; not a live incident map"></div><div class="map-footer">Reference area only. No real-time monitoring or verified alerts are displayed.</div></div></div><div class="col-lg-4"><div class="d-grid gap-3 h-100"><div class="content-card metric-card"><span class="card-kicker">PLANNING APPLICATIONS</span><strong>Not connected</strong><p>Data source and schema verification pending</p></div><div class="content-card metric-card"><span class="card-kicker">SRO REPLACEMENT LEDGER</span><strong>Not connected</strong><p>Verified records and review workflow pending</p></div><div class="content-card metric-card"><span class="card-kicker">ALCOHOL LICENSE WATCH</span><strong>Not connected</strong><p>California ABC source integration pending</p></div></div></div></div>
+        <div class="container-xl"><div class="section-top"><div><p class="eyebrow dark">CIVIC ACCOUNTABILITY</p><h2>GIS & Civic Watchdog</h2><p class="section-desc">A public-facing workspace for planning, housing, and licensing transparency.</p></div><span class="status-label"><span id="civic-feed-status" role="status">Loading verified records…</span></span></div>
+          <div class="row g-4">
+            <div class="col-lg-8">
+              <div class="content-card map-card p-0 overflow-hidden">
+                <div id="civic-map" role="region" aria-label="Map of verified civic records near Skid Row"></div>
+                <div class="map-footer">LADBS permit records are reviewed before appearing here.</div>
+              </div>
+            </div>
+            <div class="col-lg-4">
+              <div id="civic-feed-cards" class="d-grid gap-3"></div>
+              <p class="mt-3 mb-0"><a href="https://planning.lacity.gov/zoning/zoning-search">Check parcel details in ZIMAS</a></p>
+            </div>
+          </div>
           <div class="notice-panel mt-4"><strong>Audit integrity:</strong> Potential issues must be reviewed by qualified people before being characterized as legal violations or sent as community alerts. No demo results should be presented as verified city data.</div>
         </div>
       </section>
