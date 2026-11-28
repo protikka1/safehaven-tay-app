@@ -15,7 +15,14 @@ Modules Included:
   3. TRACK C: Prosocial Civic Trust Portal (Countering SoM - Sense of Misinformation via NLP)
 """
 
+import argparse
+import json
+from pathlib import Path
 import sqlite3
+from uuid import uuid4
+
+DEFAULT_DB_PATH = Path(__file__).resolve().with_name("civic_watchdog.db")
+DEFAULT_BUFFER_DEG = 0.005
 import re
 from dataclasses import dataclass
 
@@ -145,7 +152,7 @@ class ZoningAuditEngine:
         else:
             # Project is outside Skid Row, but check if it's on the boundary (Buffer Zone check)
             # A projects within 0.005 degrees of Skid Row bounds is considered on the "Strong Edge" buffer
-            buffer_dist = 0.005
+            buffer_dist = DEFAULT_BUFFER_DEG
             is_near_boundary = (
                 abs(lat - cls.SKID_ROW_BOUNDS['lat_north']) < buffer_dist or
                 abs(lat - cls.SKID_ROW_BOUNDS['lat_south']) < buffer_dist or
@@ -167,7 +174,7 @@ class SROLedgerEngine:
     Manages a relational database tracing SRO unit inventories and auditing
     redevelopment permits against active 1:1 replacement covenants.
     """
-    def __init__(self, db_path=":memory:"):
+    def __init__(self, db_path=DEFAULT_DB_PATH):
         self.conn = sqlite3.connect(db_path)
         self.conn.row_factory = sqlite3.Row
         self._initialize_database()
@@ -202,7 +209,115 @@ class SROLedgerEngine:
                 recorded_date TEXT DEFAULT CURRENT_TIMESTAMP
             );
         """)
+        cursor.executescript("""
+            CREATE TABLE IF NOT EXISTS sro_ledger (
+                id TEXT PRIMARY KEY,
+                case_ref TEXT NOT NULL,
+                units_lost INTEGER NOT NULL DEFAULT 0,
+                units_replaced INTEGER NOT NULL DEFAULT 0,
+                net_delta INTEGER NOT NULL DEFAULT 0,
+                notes TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS gis_live_feeds (
+                id TEXT PRIMARY KEY,
+                feed_source TEXT NOT NULL,
+                external_case_id TEXT UNIQUE NOT NULL,
+                project_name TEXT NOT NULL,
+                latitude REAL NOT NULL,
+                longitude REAL NOT NULL,
+                proposed_units INTEGER DEFAULT 0,
+                affordable_units INTEGER DEFAULT 0,
+                zoning_requested TEXT,
+                audit_status TEXT NOT NULL,
+                audit_warnings TEXT,
+                verification_status TEXT NOT NULL DEFAULT 'PENDING_REVIEW'
+                    CHECK (verification_status IN ('PENDING_REVIEW', 'VERIFIED', 'DISMISSED')),
+                verified_by TEXT,
+                verification_notes TEXT,
+                verified_at TEXT,
+                ingested_at TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_gis_verification_status
+                ON gis_live_feeds (verification_status);
+        """)
         self.conn.commit()
+
+    def upsert_gis_feed_record(
+        self, *, feed_source, external_case_id, project_name, latitude, longitude,
+        proposed_units=0, affordable_units=0, zoning_requested=None,
+    ):
+        """Audit one source record and reopen review only when its contents change."""
+        if not -90 <= latitude <= 90 or not -180 <= longitude <= 180:
+            raise ValueError("Coordinates are out of range.")
+        if not 0 <= affordable_units <= proposed_units:
+            raise ValueError("Unit counts are inconsistent.")
+        if not all(value.strip() for value in (feed_source, external_case_id, project_name)):
+            raise ValueError("Source, case ID and project name are required.")
+        audit = ZoningAuditEngine.audit_development_proposal(
+            project_name, latitude, longitude, proposed_units, affordable_units,
+            zoning_requested or "",
+        )
+        fields = {
+            "project_name": project_name,
+            "latitude": latitude,
+            "longitude": longitude,
+            "proposed_units": proposed_units,
+            "affordable_units": affordable_units,
+            "zoning_requested": zoning_requested,
+            "audit_status": audit["zoning_compliance"],
+            "audit_warnings": json.dumps(audit["warnings"]),
+        }
+        with self.conn:
+            self.conn.execute("BEGIN IMMEDIATE")
+            existing = self.conn.execute(
+                "SELECT * FROM gis_live_feeds WHERE external_case_id = ?", (external_case_id,)
+            ).fetchone()
+            if existing is None:
+                self.conn.execute(
+                    f"""INSERT INTO gis_live_feeds
+                        (id, feed_source, external_case_id, {", ".join(fields)})
+                        VALUES (?, ?, ?, {", ".join("?" for _ in fields)})""",
+                    (str(uuid4()), feed_source, external_case_id, *fields.values()),
+                )
+            elif existing["feed_source"] != feed_source:
+                raise ValueError("This case ID is already registered under a different source.")
+            elif any(existing[key] != value for key, value in fields.items()):
+                assignments = ", ".join(f"{key} = ?" for key in fields)
+                self.conn.execute(
+                    f"""UPDATE gis_live_feeds SET {assignments},
+                        verification_status = 'PENDING_REVIEW', verified_by = NULL,
+                        verification_notes = NULL, verified_at = NULL,
+                        ingested_at = CURRENT_TIMESTAMP WHERE id = ?""",
+                    (*fields.values(), existing["id"]),
+                )
+            return dict(self.conn.execute(
+                "SELECT * FROM gis_live_feeds WHERE external_case_id = ?", (external_case_id,)
+            ).fetchone())
+
+    def list_gis_records(self, status=None):
+        if status is None:
+            rows = self.conn.execute("SELECT * FROM gis_live_feeds ORDER BY ingested_at DESC, id")
+        else:
+            rows = self.conn.execute(
+                """SELECT * FROM gis_live_feeds WHERE verification_status = ?
+                   ORDER BY ingested_at DESC, id""", (status,)
+            )
+        return [dict(row) for row in rows]
+
+    def verify_gis_record(self, record_id, reviewer, status="VERIFIED", notes=None):
+        if status not in ("VERIFIED", "DISMISSED") or not reviewer.strip():
+            raise ValueError("Provide a reviewer and a VERIFIED or DISMISSED decision.")
+        with self.conn:
+            row = self.conn.execute(
+                """UPDATE gis_live_feeds SET verification_status = ?, verified_by = ?,
+                   verification_notes = ?, verified_at = CURRENT_TIMESTAMP
+                   WHERE id = ? RETURNING *""", (status, reviewer, notes, record_id)
+            ).fetchone()
+            if row is None:
+                raise ValueError(f"Unknown record UUID: {record_id}")
+            return dict(row)
+
 
     def seed_initial_sro_data(self):
         cursor = self.conn.cursor()
@@ -235,7 +350,7 @@ class SROLedgerEngine:
         rule_violation = ReplacementUnits < UnitsDemolished
         covenant_status = "Violated" if rule_violation else "Certified"
         
-        cov_id = f"COV-{uuid_mock()}"
+        cov_id = f"COV-{uuid4()}"
         
         try:
             # 1. Update SRO Active count
@@ -277,11 +392,7 @@ class SROLedgerEngine:
         return [dict(row) for row in cursor.fetchall()]
 
 # Helper function to generate safe unique identifiers
-_uuid_counter = 1000
-def uuid_mock():
-    global _uuid_counter
-    _uuid_counter += 1
-    return str(_uuid_counter)
+
 
 
 # ==============================================================================
@@ -385,7 +496,7 @@ def run_integrated_fccw_simulation():
 
     # 2. Test Track B: SRO 1:1 Replacement Ledger Database Audit
     print(TerminalColors.OKCYAN + "\n[TRACK B: SRO 1:1 Replacement Ledger Audit]" + TerminalColors.ENDC)
-    ledger = SROLedgerEngine()
+    ledger = SROLedgerEngine(":memory:")
     ledger.seed_initial_sro_data()
 
     # Log an Approved Replacement Covenants
@@ -429,5 +540,39 @@ def run_integrated_fccw_simulation():
     print("Simulations complete. All modules operational.")
     print("="*80 + TerminalColors.ENDC)
 
+def main():
+    parser = argparse.ArgumentParser(description="FCCW GIS review")
+    parser.add_argument("--db", default=DEFAULT_DB_PATH, type=Path)
+    commands = parser.add_subparsers(dest="command")
+    listing = commands.add_parser("list")
+    listing.add_argument(
+        "--status", choices=("PENDING_REVIEW", "VERIFIED", "DISMISSED", "ALL"),
+        default="PENDING_REVIEW",
+    )
+    verify = commands.add_parser("verify")
+    verify.add_argument("record_id", help="UUID from the list command")
+    verify.add_argument("--decision", choices=("VERIFIED", "DISMISSED"), required=True)
+    verify.add_argument("--reviewer", required=True)
+    verify.add_argument("--notes")
+    args = parser.parse_args()
+    if args.command is None:
+        run_integrated_fccw_simulation()
+        return
+
+    ledger = SROLedgerEngine(args.db)
+    try:
+        if args.command == "list":
+            result = ledger.list_gis_records(None if args.status == "ALL" else args.status)
+        else:
+            result = ledger.verify_gis_record(
+                args.record_id, args.reviewer, args.decision, args.notes
+            )
+        print(json.dumps(result, indent=2))
+    except ValueError as exc:
+        parser.error(str(exc))
+    finally:
+        ledger.conn.close()
+
+
 if __name__ == "__main__":
-    run_integrated_fccw_simulation()
+    main()
